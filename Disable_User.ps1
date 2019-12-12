@@ -1,3 +1,11 @@
+<#
+    TODO: 
+        Error Checking for exchange login
+        try/catch for connection / license / disable
+
+#>
+
+
 function Disable-UserProcess
 {
     Param
@@ -22,7 +30,7 @@ $userDept = ((((Get-ADUser -Identity $userGuid).DistinguishedName).split(","))[1
         Try {
             $user = Get-ADUser -filter "Name -eq 'Rusty Shacklford'" -Properties * #MemberOf, Mail | Select-Object DistinguishedName, Objectguid, MemberOf, Mail
             if ($user -eq $null) {
-                clear
+                Clear-Host
                 Write-Host 'User not found.'
                 Throw
             }
@@ -53,9 +61,9 @@ $userDept = ((((Get-ADUser -Identity $userGuid).DistinguishedName).split(","))[1
             if ($emailPrompt -eq 'Y') {  
                 $disabledContainer = 'OU=Support Desk,OU=Information Technology,OU=Users,OU=LDC,OU=HarborWholesale,DC=harborfoods,DC=com'
                 
-                #Open Exchange Connection
-                Import-Module '\\poshsrv.harborfoods.com\HostedScripts\users\Request Elevation\Modules\O365 Tools' -ErrorAction SilentlyContinue -WarningAction SilentlyContinue           
+                #Open Exchange Connection      
                 try {
+                    Import-Module '\\poshsrv.harborfoods.com\HostedScripts\users\Request Elevation\Modules\O365 Tools' -ErrorAction SilentlyContinue -WarningAction SilentlyContinue
                     Write-Host 'Creating Exchange Session...'
                     Connect-O365ExchSession -errorAction Stop -WarningAction SilentlyContinue  
                 } catch {
@@ -122,7 +130,6 @@ $userDept = ((((Get-ADUser -Identity $userGuid).DistinguishedName).split(","))[1
             #Disable Account
             Write-Host ('Disabling account belonging to {0}...' -f $user.name)
             Start-Sleep -s '2'
-            #Set-ADUser -Identity $user.objectguid -Enabled:$false -Credential $SDashCred 
             Disable-ADAccount -Identity $user.objectguid -Credential $SDashCred -verbose
 
             #Add Limited Accounts Membership, Set Primary Membership to Limited
@@ -131,8 +138,7 @@ $userDept = ((((Get-ADUser -Identity $userGuid).DistinguishedName).split(","))[1
             Write-Host ('Adding Limited Account membership. Setting as primary...')
             Start-Sleep -s '1'
             Add-AdGroupMember $limitedAccts -Members $user.objectSid -Credential $SDashCred -ErrorAction SilentlyContinue
-            Set-ADUser -Identity $user.objectGUID -Replace @{primaryGroupId = $primaryLimitedAccts.primaryGroupToken } -Credential $SDashCred -ErrorAction SilentlyContinue | Out-Null
-            
+            Set-ADUser -Identity $user.objectGUID -Replace @{primaryGroupId = $primaryLimitedAccts.primaryGroupToken } -Credential $SDashCred -ErrorAction SilentlyContinue | Out-Null 
 
             #Remove all other memberships beside the Primary
             Write-Host ('Removing all other Group Memberships...')
@@ -143,15 +149,13 @@ $userDept = ((((Get-ADUser -Identity $userGuid).DistinguishedName).split(","))[1
             ######################
             #   License Removal  #
             ######################
-
-            #AzureAD Connect
-            $AzureCred = Get-Credential -Username $AzureLogin -Message 'Enter password for modifying Office 365 licenses.'
             
             #Azure Connection Error Check
             $retryLoop = 0
             $stopLoop = $false
             while($stopLoop -eq $false) {
                 try {
+                    $AzureCred = Get-Credential -Username $AzureLogin -Message 'Enter password for modifying Office 365 licenses.'
                     Connect-AzureAD -Credential $AzureCred -errorAction Stop
                     Write-Host 'Connecting to Azure AD Module...'
                     Start-Sleep -s '1'
@@ -199,9 +203,9 @@ $userDept = ((((Get-ADUser -Identity $userGuid).DistinguishedName).split(","))[1
         }
 
         Get-ADuser -filter "Name -eq 'Rusty Shacklford'" -Properties MemberOf,PrimaryGroup,Enabled,Name | Select-Object Name,Enabled,PrimaryGroup,MemberOf,DistinguishedName | Format-List
-        $SuccessfullyDisabledUser = $true
         Read-Host -Prompt 'Press any key to Exit'
         Disconnect-AzureAD | Out-Null
+        $SuccessfullyDisabledUser = $true
         
     } Until ($SuccessfullyDisabledUser -eq $true)
 } 
