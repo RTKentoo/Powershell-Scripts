@@ -1,8 +1,6 @@
 <#
     TODO: 
-        Error Checking for exchange login
-        try/catch for connection / license / disable
-
+     
 #>
 
 
@@ -14,7 +12,7 @@ function Disable-UserProcess
     )
 
 <#
-$userDept = ((((Get-ADUser -Identity $userGuid).DistinguishedName).split(","))[1]).trim('OU=')
+
 #>
     Clear-Host
     $SDashCred = Get-Credential -UserName $LoginName -Message 'Disable User Process'
@@ -28,7 +26,7 @@ $userDept = ((((Get-ADUser -Identity $userGuid).DistinguishedName).split(","))[1
         Return 'Error'
     } else {
         Try {
-            $user = Get-ADUser -filter "Name -eq 'Rusty Shacklford'" -Properties * #MemberOf, Mail | Select-Object DistinguishedName, Objectguid, MemberOf, Mail
+            $user = Get-ADUser -filter "Name -eq '$userPrompt'" -Properties * #MemberOf, Mail | Select-Object DistinguishedName, Objectguid, MemberOf, Mail
             if ($user -eq $null) {
                 Clear-Host
                 Write-Host 'User not found.'
@@ -43,8 +41,8 @@ $userDept = ((((Get-ADUser -Identity $userGuid).DistinguishedName).split(","))[1
 
     $isUserEmailForward = $false
     $user | Select-Object Name, SamAccountName, EmailAddress | Format-List
+    $userDept
 
-    #Controls the Do loop
     $SuccessfullyDisabledUser = $false
     Do {
         
@@ -59,7 +57,7 @@ $userDept = ((((Get-ADUser -Identity $userGuid).DistinguishedName).split(","))[1
             #Forward Email Prompt
             $emailPrompt = Read-Host -Prompt 'Will this user need their email forwarded for 30 days? [Y/N]'
             if ($emailPrompt -eq 'Y') {  
-                $disabledContainer = 'OU=Support Desk,OU=Information Technology,OU=Users,OU=LDC,OU=HarborWholesale,DC=harborfoods,DC=com'
+                $disabledContainer = 'OU=Disabled Mail-enabled Accounts,OU=Users,OU=LDC,OU=HarborWholesale,OU=Orgs,DC=harborfoods,DC=com'
                 
                 #Open Exchange Connection      
                 try {
@@ -202,7 +200,7 @@ $userDept = ((((Get-ADUser -Identity $userGuid).DistinguishedName).split(","))[1
             Return 'Error'
         }
 
-        Get-ADuser -filter "Name -eq 'Rusty Shacklford'" -Properties MemberOf,PrimaryGroup,Enabled,Name | Select-Object Name,Enabled,PrimaryGroup,MemberOf,DistinguishedName | Format-List
+        Get-ADuser -filter "Name -eq '$user.Name'" -Properties MemberOf,PrimaryGroup,Enabled,Name | Select-Object Name,Enabled,PrimaryGroup,MemberOf,DistinguishedName | Format-List
         Read-Host -Prompt 'Press any key to Exit'
         Disconnect-AzureAD | Out-Null
         $SuccessfullyDisabledUser = $true
@@ -234,6 +232,7 @@ Set-AzureADUserLicense -ObjectId $userUPN -AssignedLicenses $licenses
 $licenses.AddLicenses = @()
 $licenses.RemoveLicenses =  (Get-AzureADSubscribedSku | Where-Object -Property SkuPartNumber -Value $subscriptionFrom -EQ).SkuID
 Set-AzureADUserLicense -ObjectId $userUPN -AssignedLicenses $licenses
+
 # Assign
 $license.SkuId = (Get-AzureADSubscribedSku | Where-Object -Property SkuPartNumber -Value $subscriptionTo -EQ).SkuID
 $licenses = New-Object -TypeName Microsoft.Open.AzureAD.Model.AssignedLicenses
