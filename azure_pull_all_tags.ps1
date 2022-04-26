@@ -1,4 +1,4 @@
-$subscription = Get-AzSubscription -SubscriptionId "c34025c1-bdb6-444a-8d83-a169588a70aa"
+$subscription = Get-AzSubscription -SubscriptionId ""
 
 $tags = Get-AzTag 
 
